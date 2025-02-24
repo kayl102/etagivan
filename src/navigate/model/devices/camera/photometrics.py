@@ -162,12 +162,12 @@ class PhotometricsCamera(CameraBase):
 
     @classmethod
     def get_connect_params(cls):
-        """Register the parameters required to connect to the stage.
+        """Register the parameters required to connect to the camera.
 
         Returns
         -------
         list
-            List of parameters required to connect to the stage.
+            List of parameters required to connect to the camera.
         """
         return ["camera_connection"]
 

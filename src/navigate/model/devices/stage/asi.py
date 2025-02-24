@@ -165,7 +165,7 @@ class ASIStage(StageBase, SerialDevice, IntegratedDevice):
             raise
 
     @classmethod
-    def connect(self, port, baudrate=115200, timeout=0.25):
+    def connect(cls, port, baudrate=115200, timeout=0.25):
         """Connect to the ASI Stage
 
         Parameters
@@ -631,7 +631,7 @@ class MS2000Stage(ASIStage):
             self.set_speed(percent=0.9)
 
     @classmethod
-    def connect(self, port, baudrate=115200, timeout=0.25):
+    def connect(cls, port, baudrate=115200, timeout=0.25):
         """Connect to the ASI Stage
 
         Parameters
@@ -783,7 +783,7 @@ class MFC2000Stage(ASIStage):
         super().__init__(microscope_name, device_connection, configuration, device_id)
 
     @classmethod
-    def connect(self, port, baudrate=115200, timeout=0.25):
+    def connect(cls, port, baudrate=115200, timeout=0.25):
         """Connect to the ASI Stage
 
         Parameters
