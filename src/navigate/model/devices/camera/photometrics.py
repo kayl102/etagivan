@@ -50,7 +50,7 @@ logger = logging.getLogger(p)
 
 
 def build_photometrics_connection(camera_connection):
-    """Build Sutter Stage Serial Port connection
+    """Build Photometrics connection
 
     Import Photometrics API and Initialize Camera Controller.
 
@@ -66,7 +66,6 @@ def build_photometrics_connection(camera_connection):
     """
     try:
         pvc.init_pvcam()
-        # camera_names = Camera.get_available_camera_names()
         camera_to_open = Camera.select_camera(camera_connection)
         camera_to_open.open()
         return camera_to_open
@@ -97,8 +96,8 @@ class PhotometricsCamera(CameraBase):
         microscope_name: str,
         device_connection: Any,
         configuration: Dict[str, Any],
-        *args: Optional[Any],
-        **args: Optional[Any],
+        *_: Optional[Any],
+        **__: Optional[Any],
     ) -> None:
         """Initialize the Photometrics class.
 
@@ -112,6 +111,15 @@ class PhotometricsCamera(CameraBase):
                 Global configuration of the microscope
         """
         super().__init__(microscope_name, device_connection, configuration)
+
+        #: int: Binning in x direction
+        self.x_binning = None
+
+        #: int: Binning in y direction
+        self.y_binning = None
+
+        #: obj: Data Buffer
+        self._data_buffer = None
 
         self.camera_parameters["supported_readout_directions"] = [
             "Top-to-Bottom",
@@ -128,19 +136,19 @@ class PhotometricsCamera(CameraBase):
         self.configuration = configuration
 
         #: int: Exposure Time in milliseconds
-        self._exposuretime = 20
+        self._exposure_time = 20
 
         #: int: Scan Mode (0 = Normal, 1 = ASLM)
-        self._scanmode = 0
+        self._scan_mode = 0
 
         #: int: Scan Delay
-        self._scandelay = 1
+        self._scan_delay = 1
 
         #: int: Number of frames
-        self._numberofframes = 100
+        self._number_of_frames = 100
 
         #: obj: Data Buffer
-        self._databuffer = None
+        self._data_buffer = None
 
         #: int: Number of frames received
         self._frames_received = 0
@@ -182,7 +190,7 @@ class PhotometricsCamera(CameraBase):
 
     @classmethod
     def connect(cls, camera_connection):
-        """Build Sutter Stage Serial Port connection
+        """Build Photometrics Stage Serial Port connection
 
         Import Photometrics API and Initialize Camera Controller.
 
@@ -232,7 +240,7 @@ class PhotometricsCamera(CameraBase):
         print("internal_line_interval")
         print("sensor size" + str(self.camera_controller.sensor_size))
         print("image_height and width" + str(self.x_pixels) + ", " + str(self.y_pixels))
-        print("exposure_time" + str(self._exposuretime))
+        print("exposure_time" + str(self._exposure_time))
 
     def close_camera(self):
         """Close Photometrics Camera"""
@@ -251,7 +259,7 @@ class PhotometricsCamera(CameraBase):
         modes_dict = {"Normal": 0, "Light-Sheet": 1}
         if mode in modes_dict:
             self.camera_controller.prog_scan_mode = modes_dict[mode]
-            self._scanmode = modes_dict[mode]
+            self._scan_mode = modes_dict[mode]
         else:
             print("Camera mode not supported" + str(modes_dict[mode]))
             logger.debug("Camera mode not supported" + str(modes_dict[mode]))
@@ -278,7 +286,7 @@ class PhotometricsCamera(CameraBase):
             logger.debug("Camera readout direction not supported")
 
     def calculate_readout_time(self):
-        """Calculate duration of time needed to readout an image.
+        """Calculate duration of time needed to read out an image.
 
         Calculates the readout time and maximum frame rate according to the camera
         configuration settings.
@@ -290,7 +298,7 @@ class PhotometricsCamera(CameraBase):
         Returns
         -------
         readout_time : float
-            Duration of time needed to readout an image in seconds.
+            Duration of time needed to read out an image in seconds.
         """
 
         # get the readout time from the Photometrics camera in us
@@ -313,9 +321,9 @@ class PhotometricsCamera(CameraBase):
         exposure_time : float
             Exposure time in milliseconds.
         """
-        self._exposuretime = int(exposure_time * 1000)
-        self.camera_controller.exp_time = self._exposuretime
-        self.camera_controller.start_live(self._exposuretime)
+        self._exposure_time = int(exposure_time * 1000)
+        self.camera_controller.exp_time = self._exposure_time
+        self.camera_controller.start_live(self._exposure_time)
         return exposure_time
 
     def set_line_interval(self, line_interval_time):
@@ -326,8 +334,8 @@ class PhotometricsCamera(CameraBase):
         line_interval_time : float
             Line interval duration.
         """
-        # todo calculate line delay from scandelay
-        self._scandelay = line_interval_time
+        # todo calculate line delay from scan delay
+        self._scan_delay = line_interval_time
         self.camera_controller.prog_scan_line_delay = line_interval_time
 
     def calculate_light_sheet_exposure_time(
@@ -354,36 +362,36 @@ class PhotometricsCamera(CameraBase):
         """
 
         # size of ROI
-        nbrows = self.y_pixels
+        number_rows = self.y_pixels
 
         # transform exposure time to milliseconds for Photometrics API.
         full_chip_exposure_time = full_chip_exposure_time * 1000
 
         # equations to calculate ASLM parameters
-        linedelay = self.camera_parameters.get("unitforlinedelay", 1) / 1000
-        ASLM_lineExposure = int(
-            np.ceil(full_chip_exposure_time / (1 + (1 + nbrows) / shutter_width))
+        line_delay = self.camera_parameters.get("unitforlinedelay", 1) / 1000
+        aslm_line_exposure = int(
+            np.ceil(full_chip_exposure_time / (1 + (1 + number_rows) / shutter_width))
         )
-        ASLM_line_delay = (
+        aslm_line_delay = (
             int(
                 np.ceil(
-                    (full_chip_exposure_time - ASLM_lineExposure)
-                    / ((nbrows + 1) * linedelay)
+                    (full_chip_exposure_time - aslm_line_exposure)
+                    / ((number_rows + 1) * line_delay)
                 )
             )
             - 1
         )
 
-        ASLM_acquisition_time = (
-            (ASLM_line_delay + 1) * nbrows * linedelay
-            + ASLM_lineExposure
-            + (ASLM_line_delay + 1) * linedelay
+        aslm_acquisition_time = (
+            (aslm_line_delay + 1) * number_rows * line_delay
+            + aslm_line_exposure
+            + (aslm_line_delay + 1) * line_delay
         )
 
-        self.camera_parameters["line_interval"] = ASLM_lineExposure
-        self._exposuretime = ASLM_lineExposure
-        self._scandelay = ASLM_line_delay
-        return ASLM_lineExposure / 1000, ASLM_line_delay, ASLM_acquisition_time / 1000
+        self.camera_parameters["line_interval"] = aslm_line_exposure
+        self._exposure_time = aslm_line_exposure
+        self._scan_delay = aslm_line_delay
+        return aslm_line_exposure / 1000, aslm_line_delay, aslm_acquisition_time / 1000
 
     def set_binning(self, binning_string):
         """Set Photometrics binning mode.
@@ -488,11 +496,11 @@ class PhotometricsCamera(CameraBase):
         """
 
         # set camera parameters depending on acquisition mode
-        self._scanmode = self.camera_controller.prog_scan_mode
-        if self._scanmode == 1:
+        self._scan_mode = self.camera_controller.prog_scan_mode
+        if self._scan_mode == 1:
             # Programmable scan mode (ASLM)
             self.camera_controller.exp_mode = "Edge Trigger"
-            self.camera_controller.prog_scan_line_delay = self._scandelay
+            self.camera_controller.prog_scan_line_delay = self._scan_delay
             self.camera_controller.exp_out_mode = 4
 
         else:
@@ -502,7 +510,7 @@ class PhotometricsCamera(CameraBase):
 
         # Prepare for buffered acquisition
         #: int: Number of frames
-        self._numberofframes = number_of_frames
+        self._number_of_frames = number_of_frames
 
         #: obj: Data Buffer
         self._data_buffer = data_buffer
@@ -542,13 +550,12 @@ class PhotometricsCamera(CameraBase):
                 frame["pixel_data"][:]
             )
             # Delete copied frame for memory management
-            frame = None
             del frame
 
             frame_to_return = [self._frames_received]
             self._frames_received += 1
             # check to make sure the next frame exist in buffer
-            if self._frames_received >= self._numberofframes:
+            if self._frames_received >= self._number_of_frames:
                 self._frames_received = 0
             return frame_to_return
 
