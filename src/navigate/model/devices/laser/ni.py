@@ -86,13 +86,14 @@ class NILaser(LaserBase, NIDevice):
             "laser"
         ][device_id]["onoff"]["hardware"].get("type", None)
 
-
         if analog == "NI" and digital == "NI":
             modulation_type = "mixed"
         elif analog == "NI":
-            odulation_type = "analog"
+            modulation_type = "analog"
         elif digital == "NI":
             modulation_type = "digital"
+        else:
+            raise ValueError("Laser modulation type not recognized.")
 
         #: str: The modulation type of the laser - Analog, Digital, or Mixed.
         self.modulation_type = modulation_type

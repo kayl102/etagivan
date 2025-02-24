@@ -76,6 +76,7 @@ class SerialDevice:
         """Connect to serial device.
         """
         if port:
+            from serial import Serial
             self.serial = Serial()
             self.serial.port = port
             self.serial.baudrate = baudrate
