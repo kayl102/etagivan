@@ -992,11 +992,19 @@ def verify_configuration(manager, configuration):
 
         # laser
         for i, laser_config in enumerate(device_config[microscope_name]["laser"]):
+            onoff_type = laser_config["onoff"]["hardware"].get("type", "Synthetic")
+            power_type = laser_config["power"]["hardware"].get("type", "Synthetic")
+            if onoff_type != "Synthetic":
+                laser_type = onoff_type
+            elif power_type != "Synthetic":
+                laser_type = power_type
+            else:
+                laser_type = "Synthetic"
             update_config_dict(
                 manager,
                 laser_config,
                 "hardware",
-                {"type": "NI", "wavelength": laser_config["wavelength"]}
+                {"type": laser_type, "wavelength": laser_config["wavelength"]}
             )
 
         # zoom
