@@ -135,8 +135,8 @@ class OMEZarrMetadata(Metadata):
             The scale of the dataset.
         """
         return [
-            self.dt,
-            self.dc,
+            1,  # t
+            1,  # c
             self.dz * subdiv[2],
             self.dy * subdiv[1],
             self.dx * subdiv[0],
