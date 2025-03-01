@@ -939,12 +939,13 @@ class TigerController:
         self.send_filter_wheel_command(f"MOVE {dichroic_id}={dichroic_position}")
         self.read_response()
 
-    def square_wave(self):
+    def square_wave(self, ON_TIME, DELAY_TIME):
+
         commands = ['CCA X=0',
 
         'M E=2',
         'CCA Y=15',
-        'CCA Z=800',
+        f'CCA Z={DELAY_TIME}',
         'CCB X=68 Y=192 Z=0',
 
         'M E=3',
@@ -953,7 +954,7 @@ class TigerController:
 
         'M E=4',
         'CCA Y=14',
-        'CCA Z=3200',
+        f'CCA Z={ON_TIME}',
         'CCB X=3 Y=192 Z=0',
 
         'M E=33',
@@ -972,6 +973,17 @@ class TigerController:
             self.send_command(f'{command}\r')
             self.read_response()
 
-    def off(self):
+    def PLCon(self, axis : str):
+        AXIS = int(axis) + 32
+        self.send_command(f'M E = {AXIS}\r')
+        self.read_response()
+        self.send_command(f'CCA Z=1\r')
+        self.read_response()
+        
+
+    def PLCoff(self, axis : str):
+        AXIS = int(axis) + 32
+        self.send_command(f'M E = {AXIS}\r')
+        self.read_response()
         self.send_command(f'CCA Z=0\r')
         self.read_response()
