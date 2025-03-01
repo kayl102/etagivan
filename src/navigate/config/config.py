@@ -995,16 +995,18 @@ def verify_configuration(manager, configuration):
             onoff_type = laser_config["onoff"]["hardware"].get("type", "Synthetic")
             power_type = laser_config["power"]["hardware"].get("type", "Synthetic")
             if onoff_type != "Synthetic":
-                laser_type = onoff_type
+                laser_hardware_config = dict(laser_config["onoff"]["hardware"])
             elif power_type != "Synthetic":
-                laser_type = power_type
+                laser_hardware_config = dict(laser_config["power"]["hardware"])
             else:
-                laser_type = "Synthetic"
+                laser_hardware_config = {"type": "Synthetic"}
+            laser_hardware_config["wavelength"] = laser_config["wavelength"]
+
             update_config_dict(
                 manager,
                 laser_config,
                 "hardware",
-                {"type": laser_type, "wavelength": laser_config["wavelength"]}
+                laser_hardware_config
             )
 
         # zoom
