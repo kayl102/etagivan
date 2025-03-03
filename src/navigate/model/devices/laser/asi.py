@@ -158,17 +158,18 @@ class ASILaser(LaserBase, SerialDevice):
             raise Exception("ASI stage connection failed.")
         return tiger_controller
 
-    def set_power(self, power_intensity):
+    def set_power(self, laser_intensity: float):
         """Change the filter wheel to the filter designated by the filter
         position argument.
         """
         if self.modulation_type == "analog":
             # TGDAC
-            self.power_intensity = power_intensity
-            self.output_voltage = (int(power_intensity)/100) * self.laser_max_ao * 1000
-            if self.output_voltage > (self.laser_max_ao * 1000):
-                self.output_voltage = self.laser_max_ao * 1000
-            self.laser.move_axis(self.axis, self.output_voltage)
+            scaled_laser_voltage = (int(laser_intensity) / 100) * self.laser_max_ao * 1000
+            if scaled_laser_voltage > (self.laser_max_ao * 1000):
+                scaled_laser_voltage = self.laser_max_ao * 1000
+            self.laser.move_axis(self.axis, scaled_laser_voltage)
+            self._current_intensity = laser_intensity
+
         # Add PLC on and off commands
         '''else:
             # Programmable Logic Card
