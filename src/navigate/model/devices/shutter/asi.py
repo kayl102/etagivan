@@ -37,6 +37,7 @@ from typing import Any, Dict
 
 # Local Imports
 from navigate.model.devices.shutter.base import ShutterBase
+from navigate.model.devices.device_types import SerialDevice
 from navigate.tools.decorators import log_initialization
 from navigate.model.devices.APIs.asi.asi_tiger_controller import TigerController
 
@@ -45,7 +46,7 @@ p = __name__.split(".")[1]
 logger = logging.getLogger(p)
 
 @log_initialization
-class ASIShutterTTL(ShutterBase, TigerController):
+class ASIShutter(ShutterBase, SerialDevice):
     """ShutterTTL Class
 
     Triggering for shutters delivered from the TigerController.
@@ -74,29 +75,62 @@ class ASIShutterTTL(ShutterBase, TigerController):
         super().__init__(microscope_name, device_connection, configuration)
         
         self.address = address
-        self.tiger_controller = TigerController(
+
+        self.shutter = device_connection
+        """
+        tiger_controller = TigerController(
             com_port=configuration["configuration"]["microscopes"][microscope_name]["shutter"]["hardware"]["com_port"],
             baud_rate=115200  # Default baud rate, modify as needed
         )
+        """
+        self.axis = configuration["configuration"]["microscopes"][microscope_name]["shutter"]["hardware"]["axis"]
+
+        self.port = configuration["configuration"]["microscopes"][microscope_name]["shutter"]["hardware"]["port"]
+
+    @classmethod
+    def connect(cls, port, baudrate=115200, timeout=0.25):
+        """Build ASILaser Serial Port connection
+
+        Parameters
+        ----------
+        port : str
+            Port for communicating with the filter wheel, e.g., COM1.
+        baudrate : int
+            Baud rate for communicating with the filter wheel, default is 115200.
+        timeout : float
+            Timeout for communicating with the filter wheel, default is 0.25.
+
+        Returns
+        -------
+        tiger_controller : TigerController
+            ASI Tiger Controller object.
+        """
+        # wait until ASI device is ready
+        tiger_controller = TigerController(port, baudrate)
+        tiger_controller.connect_to_serial()
+        if not tiger_controller.is_open():
+            logger.error("ASI stage connection failed.")
+            raise Exception("ASI stage connection failed.")
+        return tiger_controller
 
     def __del__(self):
         try:
-            if self.tiger_controller:
-                self.tiger_controller.disconnect_from_serial()
+            if self.shutter:
+                self.shutter.disconnect_from_serial()
                 logger.debug("TigerController disconnected successfully.")
         except Exception as e:
             logger.exception(f"Error during cleanup: {traceback.format_exc()}")
 
     def open_shutter(self):
         try:
-            self.tiger_controller.PLCon(self.address)
+            self.shutter.PLCon(self.axis)
             logger.debug("ShutterTTL - Shutter opened")
         except Exception as e:
             logger.exception(f"Shutter not open: {traceback.format_exc()}")
 
     def close_shutter(self):
         try:
-            self.tiger_controller.PLCoff(self.address)
+            self.shutter.PLCoff(self.axis)
             logger.debug("ShutterTTL - Shutter closed")
         except Exception as e:
             logger.exception(f"Shutter did not close: {traceback.format_exc()}")

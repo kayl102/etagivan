@@ -977,7 +977,7 @@ class TigerController:
         AXIS = int(axis) + 32
         self.send_command(f'M E = {AXIS}\r')
         self.read_response()
-        self.send_command(f'CCA Z=1\r')
+        self.send_command(f'CCA Z=64\r')
         self.read_response()
         
 
