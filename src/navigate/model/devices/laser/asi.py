@@ -59,6 +59,9 @@ class ASILaser(LaserBase, SerialDevice):
     def __init__(self, microscope_name, device_connection, configuration, device_id: 0):
         """Initialize the ASILaser class.
 
+        Analog modulation is performed solely with the tgdaq system as part of a
+        larger Tiger Controller buildout.
+
         Parameters
         ----------
         microscope_name : str
@@ -96,16 +99,16 @@ class ASILaser(LaserBase, SerialDevice):
         self.laser = device_connection
 
         #: float: The minimum digital modulation voltage.
-        self.laser_min_do = self.device_config["onoff"]["hardware"]["min"]
+        self.laser_min_do = self.device_config["onoff"]["hardware"].get("min", 0)
 
         #: float: The maximum digital modulation voltage.
-        self.laser_max_do = self.device_config["onoff"]["hardware"]["max"]
+        self.laser_max_do = self.device_config["onoff"]["hardware"].get("max", 5)
 
         #: float: The minimum analog modulation voltage.
-        self.laser_min_ao = self.device_config["power"]["hardware"]["min"]
+        self.laser_min_ao = self.device_config["power"]["hardware"].get("min", 0)
 
         #: float: The maximum analog modulation voltage.
-        self.laser_max_ao = self.device_config["power"]["hardware"]["max"]
+        self.laser_max_ao = self.device_config["power"]["hardware"].get("max", 5)
 
         #: str: Output axis on Tiger Controller
         self.axis = self.axis = self.device_config["power"]["hardware"]["axis"]
@@ -161,35 +164,32 @@ class ASILaser(LaserBase, SerialDevice):
     def set_power(self, laser_intensity: float):
         """Sets the analog laser power.
 
+        Set analog output voltage to the laser via tgdac system.
+
         Parameters
         ----------
         laser_intensity : float
             The laser intensity.
         """
-        if self.modulation_type == "analog":
-            # TGDAC
-            self.output_voltage = (int(laser_intensity) / 100) * self.laser_max_ao * 1000
-            if self.output_voltage > (self.laser_max_ao * 1000):
-                self.output_voltage = self.laser_max_ao * 1000
-            self.laser.move_axis(self.axis, self.output_voltage)
+        if self.modulation_type == "analog" or self.modulation_type == "mixed":
+            output_voltage = (int(laser_intensity) / 100) * self.laser_max_ao * 1000
+            if output_voltage > (self.laser_max_ao * 1000):
+                output_voltage = self.laser_max_ao * 1000
+            self.laser.move_axis(self.axis, output_voltage)
             self._current_intensity = laser_intensity
 
-        # Add PLC on and off commands
-        '''else:
-            # Programmable Logic Card
-            if voltage > 2.5:
-                output_voltage = 5
-            else:
-                output_voltage = 0
-            self.laser.move_digital_axis(axis, output_voltage)
-        '''
-
     def turn_on(self):
-        """Turns on the laser."""
+        """Turns on the laser.
+
+        Mixed versus analog versus digital? """
+
         self.set_power(self._current_intensity)
 
     def turn_off(self):
-        """Turns off the laser."""
+        """Turns off the laser.
+
+        Should set to the minimum?
+        """
         tmp = self._current_intensity
         self.set_power(0)
         self._current_intensity = tmp
