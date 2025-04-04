@@ -988,20 +988,22 @@ class TigerController:
         self.send_command(f'CCA Z=0\r')
         self.read_response()
 
-    def SA_waveform(self, axis:str, waveform=0, amplitude=1000, offset=500):
+    def SA_waveform(self, axis:str, waveform=0, amplitude=1000, offset=500, frequency=1000):
         """Programs the analog waveforms using SAA, SAO, and SAP
         Default waveform is a sawtooth waveform with an amplitude of 1V with an offset of 0.5V
 
         Parameters
         ----------
         axis: str
-            Laser axis
+            Tiger Controller axis
         waveform: 
             Type of waveform pattern according to https://asiimaging.com/docs/commands/sap
         amplitude:
             amplitude of the waveform
         offset:
-            sets the center position of the waveform        
+            sets the center position of the waveform
+        frequency:
+            sets the period of the waveform        
         """
 
         "Verify if this is for synchronous or asynchronous"
@@ -1011,6 +1013,7 @@ class TigerController:
         self.read_response()
         self.send_command(f"SAO {axis}={offset}")
         self.read_response()
+        self.send_command(f"SAF {axis}={frequency}")
 
     def SAM(self, axis: str, mode: int):
         """Sets the single-axis mode according to the integer code.
