@@ -45,50 +45,112 @@ import numpy as np
 import serial
 # Local Imports
 from navigate.model.devices.daq.base import DAQBase
-from navigate.tools.waveform_template_funcs import get_waveform_template_parameters
+from navigate.model.devices.device_types import SerialDevice
+from navigate.model.devices.APIs.asi.asi_tiger_controller import TigerController
 from navigate.tools.decorators import log_initialization
+from navigate.tools.waveform_template_funcs import get_waveform_template_parameters
 
+# Logger Setup
+p = __name__.split(".")[1]
+logger = logging.getLogger(p)
 
+@log_initialization
+class ASIDAQ(DAQBase, SerialDevice):
+    """ASIDAQ class for Data Acquisition (DAQ). 
 
-
-
-
-
-def create_camera_task(self, channel_key: str) -> None:
-    """Set up the camera trigger task using the ASI Tiger Controller via serial.
-
-    Parameters
-    ----------
-    channel_key : str
-        Channel key for current channel.
+    Representation of Tiger Controller in action. 
+    Triggers all devices and outputs to camera trigger channel.
     """
 
-    # Compute timing parameters from config
-    camera_waveform_repeat_num = self.waveform_repeat_num * self.waveform_expand_num
+    def __init__(self, configuration: Dict[str, Any]) -> None:
+        """Initialize the ASI DAQ.
 
-    if self.analog_outputs:
-        camera_high_time = 4  # ms
-        camera_low_time = (self.sweep_times[channel_key] * 1000) - camera_high_time
-    elif camera_waveform_repeat_num == 1:
-        camera_high_time = (self.sweep_times[channel_key] * 1000) - (self.camera_delay * 1000)
-        camera_low_time = 4
-    else:
-        camera_high_time = (self.sweep_times[channel_key] * 1000) - 4
-        camera_low_time = 4
+        Parameters
+        ----------
+        configuration : Dict[str, Any]
+            Configuration dictionary.
+        """
+        super().__init__(configuration)
 
-    camera_delay_ms = self.camera_delay * 1000  # Convert seconds to ms
+        #: dict: Configuration dictionary.
+        self.configuration = configuration
 
-    # TTL output line from config
-    ttl_channel = self.configuration["configuration"]["microscopes"][self.microscope_name]["daq"]["camera_trigger_out_line"]
+        #: dict: Camera object.
+        self.camera = {}
 
-    # Construct ASI TTL command
-    asi_command = f'TTL X={ttl_channel} P={camera_high_time:.0f} D={camera_delay_ms:.0f}\r'
+        #: Lock: Lock for waiting to run.
+        self.wait_to_run_lock = Lock()
 
-    # Send command over serial
-    try:
-        self.serial_port.write(asi_command.encode())
-        response = self.serial_port.readline().decode().strip()
-        logger.info(f"Sent camera trigger command: {asi_command.strip()}, Response: {response}")
-    except Exception:
-        logger.exception("Failed to send camera TTL command to ASI Tiger Controller.")
+        #: dict: Analog output tasks.
+        self.analog_outputs = {}
+
+        #: bool: Flag for updating analog task.
+        self.is_updating_analog_task = False
+
+        #: str: Trigger mode. Self-trigger or external-trigger.
+        self.trigger_mode = "self-trigger"
+
+    @classmethod
+    def connect(cls, port, baudrate=115200, timeout=0.25):
+        """Build ASILaser Serial Port connection
+
+        Parameters
+        ----------
+        port : str
+            Port for communicating with the filter wheel, e.g., COM1.
+        baudrate : int
+            Baud rate for communicating with the filter wheel, default is 115200.
+        timeout : float
+            Timeout for communicating with the filter wheel, default is 0.25.
+
+        Returns
+        -------
+        tiger_controller : TigerController
+            ASI Tiger Controller object.
+        """
+        # wait until ASI device is ready
+        tiger_controller = TigerController(port, baudrate)
+        tiger_controller.connect_to_serial()
+        if not tiger_controller.is_open():
+            logger.error("ASI stage connection failed.")
+            raise Exception("ASI stage connection failed.")
+        return tiger_controller
+
+    def create_camera_task(self, channel_key: str) -> None:
+        """Set up the camera trigger task using the ASI Tiger Controller via serial.
+
+        Parameters
+        ----------
+        channel_key : str
+            Channel key for current channel.
+        """
+
+        # Compute timing parameters from config
+        camera_waveform_repeat_num = self.waveform_repeat_num * self.waveform_expand_num
+
+        if self.analog_outputs:
+            camera_high_time = 4  # ms
+            camera_low_time = (self.sweep_times[channel_key] * 1000) - camera_high_time
+        elif camera_waveform_repeat_num == 1:
+            camera_high_time = (self.sweep_times[channel_key] * 1000) - (self.camera_delay * 1000)
+            camera_low_time = 4
+        else:
+            camera_high_time = (self.sweep_times[channel_key] * 1000) - 4
+            camera_low_time = 4
+
+        camera_delay_ms = self.camera_delay * 1000  # Convert seconds to ms
+
+        # TTL output line from config
+        ttl_channel = self.configuration["configuration"]["microscopes"][self.microscope_name]["daq"]["camera_trigger_out_line"]
+
+        # Construct ASI TTL command
+        asi_command = f'TTL X={ttl_channel} P={camera_high_time:.0f} D={camera_delay_ms:.0f}\r'
+
+        # Send command over serial
+        try:
+            self.serial_port.write(asi_command.encode())
+            response = self.serial_port.readline().decode().strip()
+            logger.info(f"Sent camera trigger command: {asi_command.strip()}, Response: {response}")
+        except Exception:
+            logger.exception("Failed to send camera TTL command to ASI Tiger Controller.")
 
