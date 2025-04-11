@@ -939,13 +939,24 @@ class TigerController:
         self.send_filter_wheel_command(f"MOVE {dichroic_id}={dichroic_position}")
         self.read_response()
 
-    def square_wave(self, ON_TIME, DELAY_TIME):
+    def square_wave(self, on_time, delay_time):
+        """Square wave modulation.
+
+        For testing only.
+
+        Parameters
+        ----------
+        on_time : int
+            On time in quarter milliseconds
+        delay_time : int
+            Delay time in quarter milliseconds
+        """
 
         commands = ['CCA X=0',
 
         'M E=2',
         'CCA Y=15',
-        f'CCA Z={DELAY_TIME}',
+        f'CCA Z={delay_time}',
         'CCB X=68 Y=192 Z=0',
 
         'M E=3',
@@ -954,7 +965,7 @@ class TigerController:
 
         'M E=4',
         'CCA Y=14',
-        f'CCA Z={ON_TIME}',
+        f'CCA Z={on_time}',
         'CCB X=3 Y=192 Z=0',
 
         'M E=33',
@@ -973,17 +984,31 @@ class TigerController:
             self.send_command(f'{command}\r')
             self.read_response()
 
-    def PLCon(self, axis : str):
-        AXIS = int(axis) + 32
-        self.send_command(f'M E = {AXIS}\r')
+    def logic_card_on(self, axis : str):
+        """Turn on the logic card
+
+        Parameters
+        ----------
+        axis : str
+            The axis of the logic card
+        """
+
+        axis = int(axis) + 32
+        self.send_command(f'M E = {axis}\r')
         self.read_response()
         self.send_command(f'CCA Z=64\r')
         self.read_response()
-        
 
-    def PLCoff(self, axis : str):
-        AXIS = int(axis) + 32
-        self.send_command(f'M E = {AXIS}\r')
+    def logic_card_off(self, axis : str):
+        """Turn off the logic card
+
+        Parameters
+        ----------
+        axis : str
+            The axis of the logic card
+        """
+        axis = int(axis) + 32
+        self.send_command(f'M E = {axis}\r')
         self.read_response()
         self.send_command(f'CCA Z=0\r')
         self.read_response()

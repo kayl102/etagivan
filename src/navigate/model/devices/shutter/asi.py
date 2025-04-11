@@ -113,7 +113,8 @@ class ASIShutter(ShutterBase, SerialDevice):
             raise Exception("ASI stage connection failed.")
         return tiger_controller
 
-    def __del__(self):
+    def __del__(self) -> None:
+        """Disconnect from the serial port."""
         try:
             if self.shutter:
                 self.shutter.disconnect_from_serial()
@@ -121,20 +122,23 @@ class ASIShutter(ShutterBase, SerialDevice):
         except Exception as e:
             logger.exception(f"Error during cleanup: {traceback.format_exc()}")
 
-    def open_shutter(self):
+    def open_shutter(self) -> None:
+        """Open the shutter."""
         try:
-            self.shutter.PLCon(self.axis)
+            self.shutter.logic_card_on(self.axis)
             logger.debug("ShutterTTL - Shutter opened")
         except Exception as e:
             logger.exception(f"Shutter not open: {traceback.format_exc()}")
 
-    def close_shutter(self):
+    def close_shutter(self) -> None:
+        """Close the shutter."""
         try:
-            self.shutter.PLCoff(self.axis)
+            self.shutter.logic_card_off(self.axis)
             logger.debug("ShutterTTL - Shutter closed")
         except Exception as e:
             logger.exception(f"Shutter did not close: {traceback.format_exc()}")
 
     @property
-    def state(self):
-        return self.tiger_controller.get_axis_position(self.address)
+    def state(self) -> bool:
+        """Get the state of the shutter."""
+        return self.shutter.get_axis_position(self.address)
