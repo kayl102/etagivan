@@ -114,4 +114,4 @@ Synthetic Lasers
                     min: 0.0
                     max: 5.0
 
-| 
+|
