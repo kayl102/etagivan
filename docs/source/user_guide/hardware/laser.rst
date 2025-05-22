@@ -113,4 +113,5 @@ Synthetic Lasers
                     channel: PXI6733/ao1
                     min: 0.0
                     max: 5.0
- 
+
+|
